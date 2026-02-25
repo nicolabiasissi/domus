@@ -1,0 +1,81 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String     @id @default(cuid())
+  name          String?
+  email         String     @unique
+  password      String?
+  plan          Plan       @default(FREE)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  properties    Property[]
+}
+
+model Property {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  address   String?
+  type      PropertyType @default(OWNED)
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  expenses  Expense[]
+}
+
+model Expense {
+  id          String    @id @default(cuid())
+  propertyId  String
+  property    Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  category    Category  @default(OTHER)
+  description String?
+  amount      Float
+  issuedAt    DateTime  @default(now())
+  dueDate     DateTime?
+  paidAt      DateTime?
+  isPaid      Boolean   @default(false)
+  isRecurring Boolean   @default(false)
+  frequency   Frequency @default(NONE)
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+enum Plan {
+  FREE
+  PRO
+}
+
+enum PropertyType {
+  OWNED
+  RENTED
+}
+
+enum Category {
+  UTILITIES
+  RENT
+  MORTGAGE
+  MAINTENANCE
+  INSURANCE
+  TAX
+  CONDOMINIUM
+  OTHER
+}
+
+enum Frequency {
+  NONE
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
