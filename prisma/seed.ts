@@ -1,15 +1,20 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+import { resolve } from "path";
+dotenv.config({ path: resolve(process.cwd(), ".env") });
+
 import { PrismaClient } from "@prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
-import { Pool, neonConfig } from "@neondatabase/serverless";
+import { neonConfig } from "@neondatabase/serverless";
 import ws from "ws";
 import bcrypt from "bcryptjs";
 
 neonConfig.webSocketConstructor = ws;
 
-const connectionString = process.env.DATABASE_URL || "";
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) throw new Error("DATABASE_URL not set");
+
 const prisma = new PrismaClient({
-  adapter: new PrismaNeon(new Pool({ connectionString })),
+  adapter: new PrismaNeon({ connectionString }),
 });
 
 async function main() {

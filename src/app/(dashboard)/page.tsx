@@ -228,7 +228,7 @@ export default function DashboardPage() {
                                     <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                                     <YAxis hide />
                                     <Tooltip
-                                        formatter={(v: number) => [fmtEur(v), "Totale"]}
+                                        formatter={(v) => [fmtEur(Number(v)), "Totale"]}
                                         contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e8e6e0" }}
                                     />
                                     <Line
@@ -254,7 +254,7 @@ export default function DashboardPage() {
                                         <XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                                         <YAxis hide />
                                         <Tooltip
-                                            formatter={(v: number) => [fmtEur(v), "Importo"]}
+                                            formatter={(v) => [fmtEur(Number(v)), "Importo"]}
                                             contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e8e6e0" }}
                                         />
                                         <Bar dataKey="total" radius={[4, 4, 0, 0]}>

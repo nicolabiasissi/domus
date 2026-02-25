@@ -32,7 +32,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const body = await request.json();
     const parsed = schema.safeParse(body);
-    if (!parsed.success) return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
 
     const { issuedAt, dueDate, paidAt, ...rest } = parsed.data;
     const updated = await prisma.expense.update({
