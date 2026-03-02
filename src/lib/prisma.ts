@@ -26,8 +26,7 @@ export const prisma =
   globalForPrisma.prisma ??
   (() => {
     neonConfig.webSocketConstructor = ws;
-    const pool = new Pool({ connectionString });
-    const adapter = new PrismaNeon(pool);
+    const adapter = new PrismaNeon({ connectionString: connectionString! });
     const client = new PrismaClient({
       adapter,
       log: process.env.NODE_ENV === "development" ? ["error"] : [],

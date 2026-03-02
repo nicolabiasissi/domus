@@ -10,14 +10,24 @@ datasource db {
 }
 
 model User {
-  id            String     @id @default(cuid())
-  name          String?
-  email         String     @unique
-  password      String?
-  plan          Plan       @default(FREE)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  properties    Property[]
+  id               String             @id @default(cuid())
+  name             String?
+  email            String             @unique
+  password         String?
+  plan             Plan               @default(FREE)
+  avatarUrl        String?
+  theme            Theme              @default(AUTO)
+  language         String             @default("it")
+  currency         String             @default("EUR")
+  notifyEmail      Boolean            @default(true)
+  notifyPush       Boolean            @default(true)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  properties       Property[]
+  emailConnection  EmailConnection?
+  identityDocs     IdentityDocument[]
+  ingestedEmails   IngestedEmail[]
+  notifications    Notification[]
 }
 
 model Property {
@@ -34,21 +44,85 @@ model Property {
 }
 
 model Expense {
-  id          String    @id @default(cuid())
-  propertyId  String
-  property    Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  category    Category  @default(OTHER)
-  description String?
-  amount      Float
-  issuedAt    DateTime  @default(now())
-  dueDate     DateTime?
-  paidAt      DateTime?
-  isPaid      Boolean   @default(false)
-  isRecurring Boolean   @default(false)
-  frequency   Frequency @default(NONE)
-  notes       String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String         @id @default(cuid())
+  propertyId      String
+  property        Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  category        Category       @default(OTHER)
+  description     String?
+  amount          Float
+  issuedAt        DateTime       @default(now())
+  dueDate         DateTime?
+  paidAt          DateTime?
+  isPaid          Boolean        @default(false)
+  isRecurring     Boolean        @default(false)
+  frequency       Frequency      @default(NONE)
+  notes           String?
+  source          ExpenseSource  @default(MANUAL)
+  ingestedEmailId String?        @unique
+  ingestedEmail   IngestedEmail? @relation(fields: [ingestedEmailId], references: [id])
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model EmailConnection {
+  id           String        @id @default(cuid())
+  userId       String        @unique
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider     EmailProvider
+  email        String
+  accessToken  String?
+  refreshToken String?
+  imapHost     String?
+  imapPort     Int?
+  imapPassword String?
+  imapSecure   Boolean       @default(true)
+  lastSyncAt   DateTime?
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model IdentityDocument {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fileUrl          String
+  extractedName    String?
+  extractedAddress String?
+  provider         String?
+  contractCode     String?
+  verifiedAt       DateTime?
+  status           DocStatus @default(PENDING)
+  createdAt        DateTime  @default(now())
+}
+
+model IngestedEmail {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messageId   String          @unique
+  subject     String?
+  body        String?
+  fromAddress String?
+  receivedAt  DateTime
+  isBill      Boolean         @default(false)
+  confidence  Float?
+  rawJson     Json?
+  status      IngestionStatus @default(PENDING)
+  expense     Expense?
+  createdAt   DateTime        @default(now())
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  isRead    Boolean          @default(false)
+  metadata  Json?
+  createdAt DateTime         @default(now())
 }
 
 enum Plan {
@@ -70,6 +144,47 @@ enum Category {
   TAX
   CONDOMINIUM
   OTHER
+}
+
+enum Theme {
+  LIGHT
+  DARK
+  AUTO
+}
+
+enum EmailProvider {
+  GMAIL
+  IMAP
+}
+
+enum DocStatus {
+  PENDING
+  VERIFIED
+  FAILED
+}
+
+enum IngestionStatus {
+  PENDING
+  DETECTED
+  PARSED
+  MATCHED
+  CREATED
+  SKIPPED
+  FAILED
+}
+
+enum NotificationType {
+  BILL_DETECTED
+  BILL_ADDED
+  PAYMENT_DUE
+  PAYMENT_OVERDUE
+  SYSTEM
+}
+
+enum ExpenseSource {
+  MANUAL
+  AI_EMAIL
+  AI_PDF
 }
 
 enum Frequency {
