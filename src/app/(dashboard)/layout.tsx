@@ -15,7 +15,7 @@ export default async function DashboardLayout({
         <div className="dashboard-root">
             <Sidebar />
             <div className="dashboard-main">
-                <Header user={session.user} />
+                <Header />
                 <main className="dashboard-content">{children}</main>
             </div>
         </div>

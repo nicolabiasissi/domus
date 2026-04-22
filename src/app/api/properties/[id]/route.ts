@@ -7,6 +7,7 @@ const schema = z.object({
     name: z.string().min(1).optional(),
     address: z.string().optional(),
     type: z.enum(["OWNED", "RENTED"]).optional(),
+    imageUrl: z.string().optional().nullable(),
     notes: z.string().optional(),
 });
 

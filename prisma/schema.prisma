@@ -11,10 +11,14 @@ datasource db {
 
 model User {
   id               String             @id @default(cuid())
+  firstName        String?
+  lastName         String?
   name             String?
   email            String             @unique
   password         String?
-  plan             Plan               @default(FREE)
+  gender           Gender?            @default(NEUTRAL)
+  birthdate        DateTime?
+  plan             Plan               @default(BASIC)
   avatarUrl        String?
   theme            Theme              @default(AUTO)
   language         String             @default("it")
@@ -35,6 +39,7 @@ model Property {
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
+  imageUrl  String?
   address   String?
   type      PropertyType @default(OWNED)
   notes     String?
@@ -126,8 +131,14 @@ model Notification {
 }
 
 enum Plan {
-  FREE
+  BASIC
   PRO
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  NEUTRAL
 }
 
 enum PropertyType {

@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Building2, Receipt, Inbox, Settings, Sparkles } from "lucide-react";
+import { LayoutDashboard, Building2, Receipt, Inbox, Settings } from "lucide-react";
+import { Logo } from "@/components/common/Logo";
 
 const navItems = [
-    { href: "/", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/", label: "Panorama", icon: LayoutDashboard },
     { href: "/properties", label: "Immobili", icon: Building2 },
-    { href: "/expenses", label: "Spese", icon: Receipt },
+    { href: "/expenses", label: "Contabilità", icon: Receipt },
     { href: "/inbox", label: "AI Inbox", icon: Inbox, badge: "NEW" },
 ];
 
@@ -19,15 +20,12 @@ export default function Sidebar() {
     const pathname = usePathname();
 
     return (
-        <aside className="sidebar" style={{ borderRight: "1px solid var(--card-border)", background: "#ffffff" }}>
-            <div className="sidebar-logo" style={{ padding: "32px 24px", display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ background: "var(--primary)", width: 32, height: 32, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
-                    <Sparkles size={18} />
-                </div>
-                <span className="sidebar-logo-text" style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-0.5px" }}>DOMUS</span>
+        <aside className="sidebar">
+            <div style={{ marginBottom: 32, paddingLeft: 4 }}>
+                <Logo size="md" />
             </div>
 
-            <nav className="sidebar-nav" style={{ padding: "0 14px", display: "flex", flexDirection: "column", gap: 4 }}>
+            <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
                 {navItems.map(({ href, label, icon: Icon, badge }) => {
                     const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
                     return (
@@ -35,23 +33,20 @@ export default function Sidebar() {
                             key={href}
                             href={href}
                             className={`sidebar-link ${active ? "sidebar-link-active" : ""}`}
-                            style={{
-                                borderRadius: 12,
-                                padding: "10px 14px",
-                                transition: "all 0.2s ease"
-                            }}
                         >
-                            <Icon size={20} style={{ opacity: active ? 1 : 0.7 }} />
-                            <span style={{ flex: 1, fontWeight: active ? 700 : 500, fontSize: 14 }}>{label}</span>
+                            <Icon size={18} />
+                            <span style={{ flex: 1 }}>{label}</span>
                             {badge && (
-                                <span className="sidebar-badge" style={{ fontSize: 9 }}>{badge}</span>
+                                <span className="badge-upcoming" style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4 }}>
+                                    {badge}
+                                </span>
                             )}
                         </Link>
                     );
                 })}
             </nav>
 
-            <div className="sidebar-bottom" style={{ marginTop: "auto", padding: "14px" }}>
+            <div className="sidebar-bottom" style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
                 {bottomItems.map(({ href, label, icon: Icon }) => {
                     const active = pathname.startsWith(href);
                     return (
@@ -59,15 +54,14 @@ export default function Sidebar() {
                             key={href}
                             href={href}
                             className={`sidebar-link ${active ? "sidebar-link-active" : ""}`}
-                            style={{ borderRadius: 12, padding: "10px 14px" }}
                         >
-                            <Icon size={20} style={{ opacity: active ? 1 : 0.7 }} />
-                            <span style={{ fontWeight: active ? 700 : 500, fontSize: 14 }}>{label}</span>
+                            <Icon size={18} />
+                            <span>{label}</span>
                         </Link>
                     );
                 })}
-                <div className="sidebar-version" style={{ padding: "12px 14px", opacity: 0.5, fontSize: 10, fontWeight: 600 }}>
-                    VERSION 0.2 • ARTIFICIAL INTELLIGENCE
+                <div style={{ marginTop: 24, fontSize: 10, fontWeight: 700, color: "var(--muted)", letterSpacing: "0.1em", paddingLeft: 16 }}>
+                    DOMUS v0.2
                 </div>
             </div>
         </aside>

@@ -1,189 +1,106 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Mail, Zap, Unlink, X } from "lucide-react";
+import { useState } from "react";
+import { Mail, Zap, Unlink, X, ShieldCheck, Sparkles, Infinity, BarChart3, Clock } from "lucide-react";
+import { motion } from "framer-motion";
+import { useAppContext } from "@/context/AppContext";
 
-interface UserAccount {
-    email: string;
-    plan: "FREE" | "PRO";
-    emailConnection: {
-        id: string;
-        email: string;
-        provider: string;
-        isActive: boolean;
-        lastSyncAt: string | null;
-    } | null;
-}
+const proFeatures = [
+    { icon: Sparkles, label: "AI Inbox Avanzato", desc: "Rilevamento automatico e parsing intelligente delle bollette." },
+    { icon: Infinity, label: "Immobili Illimitati", desc: "Gestisci tutti i tuoi asset senza alcun limite quantitativo." },
+    { icon: BarChart3, label: "Analytics Premium", desc: "Proiezioni di spesa e reportistica fiscale dettagliata." },
+    { icon: Clock, label: "Priorità Supporto", desc: "Risposte garantite dal nostro team in meno di 2 ore." },
+];
 
 export default function AccountPage() {
-    const [account, setAccount] = useState<UserAccount | null>(null);
-    const [loading, setLoading] = useState(true);
+    const { user, loading } = useAppContext();
     const [showImapModal, setShowImapModal] = useState(false);
 
-    // Form state
-    const [formData, setFormData] = useState({
-        email: "",
-        password: "",
-        host: "imap.gmail.com",
-        port: "993",
-        secure: true
-    });
+    if (loading || !user) return <div className="loading-center"><div className="spinner" /></div>;
 
-    useEffect(() => {
-        const loadAccount = async () => {
-            try {
-                const res = await fetch("/api/settings");
-                if (!res.ok) throw new Error(`Status ${res.status}`);
-                const text = await res.text();
-                if (text) {
-                    setAccount(JSON.parse(text));
-                }
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadAccount();
-    }, []);
-
-    const handleDisconnect = async () => {
-        if (!confirm("Sei sicuro di voler disconnettere la tua email?")) return;
-        await fetch("/api/email-connection", { method: "DELETE" });
-        setAccount(a => a ? { ...a, emailConnection: null } : a);
-    };
-
-    const handleImapSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        const res = await fetch("/api/email-connection", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...formData, provider: "IMAP" })
-        });
-        if (res.ok) {
-            const conn = await res.json();
-            setAccount(a => a ? { ...a, emailConnection: conn } : a);
-            setShowImapModal(false);
-        }
-        setLoading(false);
-    };
-
-    if (loading && !showImapModal) return <div className="loading-center"><div className="spinner" /></div>;
+    const isPro = user.plan === "PRO";
 
     return (
-        <div>
-            <div className="page-header">
-                <div>
-                    <h1 className="page-title">Account</h1>
-                    <p className="page-subtitle">Piano, email e abbonamento</p>
-                </div>
-            </div>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="animate-gentle">
+            <header style={{ marginBottom: 48 }}>
+                <div className="kpi-main-label">Gestione Account</div>
+                <h1 className="page-title" style={{ fontSize: 40 }}>Abbonamento</h1>
+                <p className="page-subtitle" style={{ fontSize: 13, color: "var(--muted)", marginTop: 8 }}>
+                    Controlla il tuo piano attuale e scopri le funzionalità avanzate per la gestione immobiliare.
+                </p>
+            </header>
 
-            <div className="settings-section-stack">
-                {/* Plan */}
-                <div className="settings-panel">
-                    <div className="settings-panel-title">Piano attivo</div>
-                    <div className="plan-card" style={{ padding: 24, borderRadius: 16 }}>
-                        <div className="plan-card-left">
-                            <div className={`plan-badge ${account?.plan === "PRO" ? "plan-badge-pro" : "plan-badge-free"}`}>
-                                {account?.plan === "PRO" ? "⚡ PRO" : "FREE"}
+            <div style={{ display: "flex", flexDirection: "column", gap: 64 }}>
+                {/* Current Plan Section */}
+                <div className="card" style={{ padding: 40, background: isPro ? "rgba(255,185,56,0.03)" : "var(--card)", border: isPro ? "1px solid rgba(255,185,56,0.2)" : "1px solid var(--card-border)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 }}>
+                        <div>
+                            <div style={{
+                                display: "inline-flex", padding: "4px 12px", borderRadius: 20,
+                                background: isPro ? "var(--warning-bg)" : "var(--muted-bg)",
+                                color: isPro ? "var(--warning)" : "var(--muted)",
+                                fontSize: 11, fontWeight: 800, letterSpacing: "0.1em", marginBottom: 16
+                            }}>
+                                {isPro ? "PIANO PROFESSIONALE" : "PIANO BASE"}
                             </div>
-                            <div>
-                                <p style={{ fontWeight: 700, fontSize: 16 }}>
-                                    {account?.plan === "PRO" ? "Piano Pro" : "Piano Gratuito"}
-                                </p>
-                                <p className="form-hint" style={{ marginTop: 4 }}>
-                                    {account?.plan === "PRO"
-                                        ? "Immobili illimitati, AI email ingestion, statistiche complete"
-                                        : "1 immobile, inserimento manuale spese, dashboard base"}
-                                </p>
-                            </div>
+                            <h2 style={{ fontSize: 24, fontWeight: 800 }}>{isPro ? "Domus Pro" : "Domus Basic"}</h2>
+                            <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 8 }}>
+                                {isPro ? "Hai accesso illimitato a tutta la potenza dell'AI di Domus." : "Il set di strumenti essenziale per iniziare la gestione dei tuoi immobili."}
+                            </p>
                         </div>
-                        {account?.plan === "FREE" && (
-                            <button className="btn-primary">
-                                <Zap size={14} /> Passa a Pro
+                        {!isPro && (
+                            <button className="btn-primary" style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 24px" }}>
+                                <Zap size={16} fill="currentColor" /> Upgrade a Pro
                             </button>
                         )}
                     </div>
-                </div>
 
-                {/* Email Connection */}
-                <div className="settings-panel">
-                    <div className="settings-panel-title">Connessione email</div>
-                    {account?.emailConnection ? (
-                        <div className="connection-card" style={{ padding: 20, borderRadius: 16, border: "1px solid var(--card-border)" }}>
-                            <div className="connection-icon" style={{ background: "var(--primary-light)", color: "var(--primary)", padding: 12, borderRadius: 12 }}>
-                                <Mail size={24} />
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <p style={{ fontWeight: 700, fontSize: 16 }}>{account.emailConnection.email}</p>
-                                <p className="form-hint" style={{ marginTop: 2 }}>
-                                    Provider: {account.emailConnection.provider} ·
-                                    <span style={{ color: "var(--success)" }}> ✓ Attivo</span>
-                                    {account.emailConnection.lastSyncAt &&
-                                        ` · Ultima sync: ${new Date(account.emailConnection.lastSyncAt).toLocaleDateString("it-IT")}`}
-                                </p>
-                            </div>
-                            <button className="btn-secondary" onClick={handleDisconnect} style={{ color: "var(--danger)" }}>
-                                <Unlink size={16} /> Disconnetti
-                            </button>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <ShieldCheck size={20} style={{ color: "var(--success)" }} />
+                            <span style={{ fontSize: 14, fontWeight: 500 }}>Fatturazione Mensile attiva</span>
                         </div>
-                    ) : (
-                        <div className="identity-upload-area" style={{ padding: 40, border: "2px dashed var(--card-border)", borderRadius: 20, textAlign: "center" }}>
-                            <span style={{ fontSize: 40 }}>📧</span>
-                            <p style={{ fontWeight: 700, fontSize: 16, marginTop: 12 }}>Nessuna email connessa</p>
-                            <p className="form-hint" style={{ marginTop: 4 }}>Configura la tua casella per abilitare il rilevamento AI delle bollette.</p>
-                            <div style={{ display: "flex", gap: 12, marginTop: 20, justifyContent: "center" }}>
-                                <button className="btn-primary" onClick={() => setShowImapModal(true)}>
-                                    Configura IMAP
-                                </button>
-                                <button className="btn-secondary" disabled>
-                                    Connetti Gmail (Prossimamente)
-                                </button>
-                            </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <Mail size={20} style={{ color: "var(--muted)" }} />
+                            <span style={{ fontSize: 14, fontWeight: 500 }}>Inviata a: {user.email}</span>
                         </div>
-                    )}
-                </div>
-            </div>
-
-            {/* IMAP Modal */}
-            {showImapModal && (
-                <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)" }}>
-                    <div className="premium-card" style={{ width: "100%", maxWidth: 450, padding: 32, borderRadius: 24, boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-                            <h2 style={{ fontSize: 22, fontWeight: 800 }}>Configura IMAP</h2>
-                            <button className="btn-ghost" onClick={() => setShowImapModal(false)}><X size={20} /></button>
-                        </div>
-                        <form onSubmit={handleImapSubmit} className="form-section">
-                            <div className="form-group">
-                                <label className="form-label">Email</label>
-                                <input className="form-input" type="email" required value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Password applicazione</label>
-                                <input className="form-input" type="password" required value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} />
-                                <p className="form-hint">Usa una password specifica per le app o la password della tua email.</p>
-                            </div>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">Host IMAP</label>
-                                    <input className="form-input" required value={formData.host} onChange={e => setFormData({ ...formData, host: e.target.value })} />
-                                </div>
-                                <div className="form-group" style={{ maxWidth: 100 }}>
-                                    <label className="form-label">Porta</label>
-                                    <input className="form-input" required value={formData.port} onChange={e => setFormData({ ...formData, port: e.target.value })} />
-                                </div>
-                            </div>
-                            <div className="form-actions" style={{ marginTop: 40 }}>
-                                <button type="submit" className="btn-primary" style={{ width: "100%", padding: 14 }}>
-                                    Connetti account
-                                </button>
-                            </div>
-                        </form>
                     </div>
                 </div>
-            )}
-        </div>
+
+                {/* Features Comparison */}
+                {!isPro && (
+                    <section>
+                        <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 24 }}>Sblocca il potenziale di Domus Pro</h3>
+                        <div className="settings-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                            {proFeatures.map((f, i) => (
+                                <div key={i} className="card" style={{ padding: 24, display: "flex", gap: 20 }}>
+                                    <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--muted-bg)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--warning)" }}>
+                                        <f.icon size={22} />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <h4 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>{f.label}</h4>
+                                        <p style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.5 }}>{f.desc}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
+                {/* Account Details / Danger Zone */}
+                <section>
+                    <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 24 }}>Dettagli Account</h3>
+                    <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "24px 32px" }}>
+                        <div>
+                            <p style={{ fontSize: 14, fontWeight: 700 }}>Stato dell'account</p>
+                            <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>Il tuo account è in regola e sincronizzato correttamente.</p>
+                        </div>
+                        <button className="btn-secondary" style={{ color: "var(--danger)", background: "rgba(255,77,77,0.05)" }}>
+                            Elimina Account
+                        </button>
+                    </div>
+                </section>
+            </div>
+        </motion.div>
     );
 }

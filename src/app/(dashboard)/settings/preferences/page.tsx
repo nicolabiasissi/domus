@@ -1,135 +1,143 @@
 "use client";
 
-import { useState, useEffect } from "react";
-
-interface Prefs {
-    theme: "LIGHT" | "DARK" | "AUTO";
-    language: string;
-    currency: string;
-    notifyEmail: boolean;
-    notifyPush: boolean;
-}
+import React, { useState } from "react";
+import { useAppContext } from "@/context/AppContext";
+import { motion } from "framer-motion";
+import { Check, Shield, Globe, Landmark } from "lucide-react";
 
 const themeOptions = [
-    { value: "LIGHT", label: "☀️ Chiaro" },
-    { value: "DARK", label: "🌙 Scuro" },
-    { value: "AUTO", label: "⚙️ Automatico" },
+    { value: "LIGHT", label: "Giorno" },
+    { value: "DARK", label: "Notte" },
+    { value: "AUTO", label: "Sistema" },
 ];
 
 const currencyOptions = [
-    { value: "EUR", label: "€ Euro" },
-    { value: "USD", label: "$ Dollaro" },
-    { value: "GBP", label: "£ Sterlina" },
-    { value: "CHF", label: "₣ Franco svizzero" },
-];
-
-const languageOptions = [
-    { value: "it", label: "🇮🇹 Italiano" },
-    { value: "en", label: "🇬🇧 English" },
+    { value: "EUR", label: "EUR (€)" },
+    { value: "USD", label: "USD ($)" },
+    { value: "GBP", label: "GBP (£)" },
 ];
 
 export default function PreferencesPage() {
-    const [prefs, setPrefs] = useState<Prefs>({ theme: "AUTO", language: "it", currency: "EUR", notifyEmail: true, notifyPush: true });
-    const [loading, setLoading] = useState(true);
+    const { user, updatePreferences, loading } = useAppContext();
     const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [saved, setSaved] = useState(false);
 
-    useEffect(() => {
-        fetch("/api/settings")
-            .then((r) => r.json())
-            .then((data) => {
-                setPrefs({ theme: data.theme, language: data.language, currency: data.currency, notifyEmail: data.notifyEmail, notifyPush: data.notifyPush });
-                setLoading(false);
-            });
-    }, []);
+    if (loading || !user) return null;
 
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const setPref = async (data: any) => {
         setSaving(true);
-        await fetch("/api/settings", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(prefs),
-        });
-        setSaving(false);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
+        setError(null);
+        try {
+            await updatePreferences(data);
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2000);
+        } catch (err: any) {
+            setError(err?.message || "Errore nel salvataggio");
+        } finally {
+            setSaving(false);
+        }
     };
 
-    if (loading) return <div className="loading-center"><div className="spinner" /></div>;
-
     return (
-        <div>
-            <div className="page-header">
-                <div>
-                    <h1 className="page-title">Preferenze</h1>
-                    <p className="page-subtitle">Personalizza la tua esperienza</p>
-                </div>
-            </div>
-            <form onSubmit={handleSave} className="settings-section-stack">
-                <div className="settings-panel">
-                    <div className="settings-panel-title">Aspetto e lingua</div>
-                    <div className="form-row">
-                        <div className="form-group">
-                            <label className="form-label">Tema</label>
-                            <div className="theme-picker">
-                                {themeOptions.map(({ value, label }) => (
-                                    <button
-                                        type="button"
-                                        key={value}
-                                        className={`theme-option ${prefs.theme === value ? "theme-option-active" : ""}`}
-                                        onClick={() => setPrefs(p => ({ ...p, theme: value as Prefs["theme"] }))}
-                                    >
-                                        {label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="form-group">
-                            <label className="form-label">Lingua</label>
-                            <select className="form-select" value={prefs.language} onChange={e => setPrefs(p => ({ ...p, language: e.target.value }))}>
-                                {languageOptions.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
-                            </select>
-                        </div>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="animate-gentle">
+            <header style={{ marginBottom: 48 }}>
+                <div className="kpi-main-label">Personalizzazione</div>
+                <h1 className="page-title" style={{ fontSize: 40 }}>Preferenze</h1>
+            </header>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 64 }}>
+                {/* Theme Section */}
+                <section>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+                        <Shield size={18} className="text-muted" />
+                        <h2 style={{ fontSize: 18, fontWeight: 700 }}>Interfaccia</h2>
                     </div>
-                    <div className="form-group" style={{ marginTop: 16 }}>
-                        <label className="form-label">Valuta</label>
-                        <select className="form-select" value={prefs.currency} onChange={e => setPrefs(p => ({ ...p, currency: e.target.value }))}>
-                            {currencyOptions.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+                        {themeOptions.map((opt) => (
+                            <button
+                                key={opt.value}
+                                onClick={() => setPref({ theme: opt.value })}
+                                className={user.theme === opt.value ? "sidebar-link-active" : "card"}
+                                style={{
+                                    padding: 24, border: "none", cursor: "pointer",
+                                    display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+                                    borderRadius: 12, transition: "0.2s"
+                                }}
+                            >
+                                <span style={{ fontSize: 14, fontWeight: 700 }}>{opt.label}</span>
+                                {user.theme === opt.value && <div style={{ width: 4, height: 4, background: "var(--foreground)", borderRadius: "50%" }} />}
+                            </button>
+                        ))}
+                    </div>
+                </section>
+
+                {/* Localization Section */}
+                <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
+                    <div className="card">
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                            <Globe size={16} className="text-muted" />
+                            <h3 style={{ fontSize: 14, fontWeight: 700 }}>Localizzazione</h3>
+                        </div>
+                        <select
+                            className="btn-secondary"
+                            style={{ width: "100%", textAlign: "left", background: "var(--background)", border: "1px solid var(--card-border)" }}
+                            value={user.language}
+                            onChange={(e) => setPref({ language: e.target.value })}
+                        >
+                            <option value="it">Italiano (IT)</option>
+                            <option value="en">English (UK)</option>
+                            <option value="fr">Français (FR)</option>
+                            <option value="es">Español (ES)</option>
+                            <option value="de">Deutsch (DE)</option>
                         </select>
                     </div>
-                </div>
 
-                <div className="settings-panel">
-                    <div className="settings-panel-title">Notifiche</div>
-                    <div className="settings-toggle-row">
-                        <div>
-                            <div style={{ fontWeight: 500, fontSize: 14 }}>Notifiche email</div>
-                            <p className="form-hint">Ricevi aggiornamenti e promemoria via email</p>
+                    <div className="card">
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                            <Landmark size={16} className="text-muted" />
+                            <h3 style={{ fontSize: 14, fontWeight: 700 }}>Valuta Predefinita</h3>
                         </div>
-                        <label className="toggle">
-                            <input type="checkbox" checked={prefs.notifyEmail} onChange={e => setPrefs(p => ({ ...p, notifyEmail: e.target.checked }))} />
-                            <span className="toggle-slider" />
-                        </label>
+                        <select
+                            className="btn-secondary"
+                            style={{ width: "100%", textAlign: "left", background: "var(--background)", border: "1px solid var(--card-border)" }}
+                            value={user.currency}
+                            onChange={(e) => setPref({ currency: e.target.value })}
+                        >
+                            {currencyOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                        </select>
                     </div>
-                    <div className="settings-toggle-row">
-                        <div>
-                            <div style={{ fontWeight: 500, fontSize: 14 }}>Notifiche push</div>
-                            <p className="form-hint">Notifiche nel browser per nuove bollette rilevate</p>
-                        </div>
-                        <label className="toggle">
-                            <input type="checkbox" checked={prefs.notifyPush} onChange={e => setPrefs(p => ({ ...p, notifyPush: e.target.checked }))} />
-                            <span className="toggle-slider" />
-                        </label>
-                    </div>
-                </div>
+                </section>
 
-                <div className="form-actions">
-                    <button type="submit" className="btn-primary" disabled={saving}>
-                        {saving ? "Salvataggio..." : saved ? "✓ Salvato!" : "Salva preferenze"}
-                    </button>
-                </div>
-            </form>
-        </div>
+                {/* Notifications Section */}
+                <section>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+                        <h2 style={{ fontSize: 18, fontWeight: 700 }}>Notifiche</h2>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        {[
+                            { key: "notifyEmail", label: "Notifiche via email" },
+                            { key: "notifyPush", label: "Notifiche push" }
+                        ].map(({ key, label }) => (
+                            <div key={key} className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 24px" }}>
+                                <span style={{ fontSize: 14, fontWeight: 500 }}>{label}</span>
+                                <input
+                                    type="checkbox"
+                                    checked={(user as any)[key]}
+                                    onChange={(e) => setPref({ [key]: e.target.checked })}
+                                    style={{ width: 40, height: 20, cursor: "pointer" }}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
+                <footer style={{ borderTop: "1px solid var(--card-border)", paddingTop: 32, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: error ? "var(--danger)" : saved ? "var(--success)" : "var(--muted)" }}>
+                        {saving ? "Salvataggio..." : error ? error : saved ? "✓ Preferenze salvate" : "Preferenze sincronizzate con il cloud Domus."}
+                    </div>
+                </footer>
+            </div>
+        </motion.div>
     );
 }

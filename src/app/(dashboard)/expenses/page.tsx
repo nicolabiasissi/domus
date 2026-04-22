@@ -3,9 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Plus, Check, Pencil, Trash2 } from "lucide-react";
+import { Plus, Check, Pencil, Trash2, Calendar, LayoutGrid, List } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAppContext } from "@/context/AppContext";
+import { formatCurrency } from "@/lib/currency";
 
 interface Expense {
     id: string;
@@ -15,41 +18,23 @@ interface Expense {
     dueDate: string | null;
     issuedAt: string;
     isPaid: boolean;
-    isRecurring: boolean;
-    frequency: string;
     property: { name: string };
 }
 
-const categoryIcon: Record<string, string> = {
-    UTILITIES: "⚡", RENT: "🏠", MORTGAGE: "🏦", MAINTENANCE: "🔧",
-    INSURANCE: "🛡️", TAX: "📋", CONDOMINIUM: "🏢", OTHER: "📄",
+const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.3 } }
 };
-const categoryLabel: Record<string, string> = {
-    UTILITIES: "Utenze", RENT: "Affitto", MORTGAGE: "Mutuo",
-    MAINTENANCE: "Manutenzione", INSURANCE: "Assicurazione",
-    TAX: "Tasse", CONDOMINIUM: "Condominio", OTHER: "Altro",
-};
-
-function fmtDate(d: string | null) {
-    if (!d) return null;
-    return format(new Date(d), "d MMM yyyy", { locale: it });
-}
-
-function fmtEur(amount: number) {
-    return new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(amount);
-}
-
-function isOverdue(e: Expense) {
-    return !e.isPaid && e.dueDate && new Date(e.dueDate) < new Date();
-}
 
 export default function ExpensesPage() {
+    const { user, loading: appLoading } = useAppContext();
     const searchParams = useSearchParams();
     const propertyId = searchParams.get("propertyId");
+    const initialFilter = searchParams.get("filter") as "all" | "unpaid" | "paid" | null;
 
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState<"all" | "unpaid" | "paid">("all");
+    const [filter, setFilter] = useState<"all" | "unpaid" | "paid">(initialFilter || "all");
 
     const load = useCallback(async () => {
         const url = new URL("/api/expenses", window.location.origin);
@@ -62,134 +47,133 @@ export default function ExpensesPage() {
     useEffect(() => { load(); }, [load]);
 
     async function markPaid(id: string) {
-        await fetch(`/api/expenses/${id}`, {
+        const res = await fetch(`/api/expenses/${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ isPaid: true, paidAt: new Date().toISOString() }),
         });
-        setExpenses((prev) => prev.map((e) => e.id === id ? { ...e, isPaid: true } : e));
+        if (res.ok) setExpenses(prev => prev.map(e => e.id === id ? { ...e, isPaid: true } : e));
     }
 
     async function deleteExpense(id: string) {
         if (!confirm("Eliminare questa spesa?")) return;
         await fetch(`/api/expenses/${id}`, { method: "DELETE" });
-        setExpenses((prev) => prev.filter((e) => e.id !== id));
+        setExpenses(prev => prev.filter(e => e.id !== id));
     }
 
-    const filtered = expenses.filter((e) => {
+    const filtered = expenses.filter(e => {
         if (filter === "paid") return e.isPaid;
         if (filter === "unpaid") return !e.isPaid;
         return true;
     });
 
-    if (loading) return <div className="loading-center"><div className="spinner" /></div>;
+    const isLoading = loading || appLoading;
+    if (isLoading) return null;
+
+    const currency = user?.currency || "EUR";
+    const lang = user?.language || "it";
+    const fmt = (v: number) => formatCurrency(v, currency, lang);
 
     return (
-        <div>
-            <div className="page-header">
+        <motion.div initial="hidden" animate="visible" className="animate-gentle">
+            <header style={{ marginBottom: 48, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                 <div>
-                    <h1 className="page-title">Spese</h1>
-                    <p className="page-subtitle">{expenses.length} spesa{expenses.length !== 1 ? "e" : ""} totali</p>
+                    <div className="kpi-main-label">Contabilità</div>
+                    <h1 className="page-title" style={{ fontSize: 40 }}>Flussi di Spesa</h1>
                 </div>
                 <Link href="/expenses/new" className="btn-primary">
-                    <Plus size={16} />
-                    Nuova spesa
+                    <Plus size={16} style={{ marginRight: 8 }} />
+                    Nuova Voce
                 </Link>
-            </div>
+            </header>
 
-            <div className="filters-bar">
-                {(["all", "unpaid", "paid"] as const).map((f) => (
+            <div style={{ display: "flex", gap: 8, marginBottom: 32, borderBottom: "1px solid var(--card-border)", paddingBottom: 12 }}>
+                {(["all", "unpaid", "paid"] as const).map(f => (
                     <button
                         key={f}
                         onClick={() => setFilter(f)}
-                        className={filter === f ? "btn-primary btn-sm" : "btn-secondary btn-sm"}
+                        style={{
+                            background: "none", border: "none",
+                            color: filter === f ? "var(--foreground)" : "var(--muted)",
+                            fontSize: 13, fontWeight: 700, padding: "8px 16px", cursor: "pointer",
+                            position: "relative"
+                        }}
                     >
-                        {f === "all" ? "Tutte" : f === "unpaid" ? "Da pagare" : "Pagate"}
+                        {f === "all" ? "Totale" : f === "unpaid" ? "Da Pagare" : "Archivio"}
+                        {filter === f && (
+                            <motion.div
+                                layoutId="activeFilter"
+                                style={{ position: "absolute", bottom: -13, left: 0, right: 0, height: 2, background: "var(--foreground)" }}
+                            />
+                        )}
                     </button>
                 ))}
-                <span className="text-muted text-sm" style={{ marginLeft: "auto" }}>
-                    {filtered.length} risultati
-                </span>
             </div>
 
-            {filtered.length === 0 ? (
-                <div className="empty-state">
-                    <div className="empty-icon">🧾</div>
-                    <p className="empty-title">Nessuna spesa trovata</p>
-                    <p className="empty-sub">
-                        {filter === "all"
-                            ? "Aggiungi la tua prima spesa per iniziare"
-                            : filter === "unpaid"
-                                ? "Nessuna spesa da pagare 🎉"
-                                : "Nessuna spesa pagata ancora"}
-                    </p>
-                    {filter === "all" && (
-                        <Link href="/expenses/new" className="btn-primary">
-                            <Plus size={16} /> Nuova spesa
-                        </Link>
-                    )}
-                </div>
-            ) : (
-                <div className="expense-list">
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <AnimatePresence>
                     {filtered.map((e) => {
-                        const overdue = isOverdue(e);
+                        const overdue = !e.isPaid && e.dueDate && new Date(e.dueDate) < new Date();
                         return (
-                            <div key={e.id} className={`expense-item ${e.isPaid ? "expense-item-paid" : ""}`}>
-                                <div className="expense-icon">{categoryIcon[e.category] || "📄"}</div>
-                                <div className="expense-info">
-                                    <div className="expense-desc">
-                                        {e.description || categoryLabel[e.category]}
+                            <motion.div
+                                layout
+                                key={e.id}
+                                variants={itemVariants}
+                                exit={{ opacity: 0, x: -10 }}
+                                className="premium-card"
+                                style={{
+                                    borderRadius: 0, borderLeft: "none", borderRight: "none", borderTop: "none",
+                                    padding: "20px 24px", display: "flex", alignItems: "center", gap: 24,
+                                    background: "transparent"
+                                }}
+                            >
+                                <div style={{ width: 4, height: 24, background: e.isPaid ? "var(--success)" : overdue ? "var(--danger)" : "var(--muted)", opacity: e.isPaid ? 0.3 : 1, borderRadius: 2 }} />
+
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: 15, fontWeight: 700, color: e.isPaid ? "var(--muted)" : "var(--foreground)" }}>
+                                        {e.description || e.category}
                                     </div>
-                                    <div className="expense-meta">
+                                    <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2, display: "flex", gap: 8 }}>
                                         <span>{e.property.name}</span>
                                         <span>·</span>
-                                        <span>{categoryLabel[e.category]}</span>
                                         {e.dueDate && (
-                                            <>
-                                                <span>·</span>
-                                                <span className={overdue ? "text-danger" : ""}>
-                                                    {overdue ? "Scaduta " : "Scade "}
-                                                    {fmtDate(e.dueDate)}
-                                                </span>
-                                            </>
-                                        )}
-                                        {e.isRecurring && (
-                                            <>
-                                                <span>·</span>
-                                                <span>🔄 {e.frequency.toLowerCase()}</span>
-                                            </>
+                                            <span style={{ color: overdue ? "var(--danger)" : "inherit" }}>
+                                                {format(new Date(e.dueDate), "dd MMM yyyy")}
+                                            </span>
                                         )}
                                     </div>
                                 </div>
-                                <div className="expense-right">
-                                    <div className={`expense-amount ${overdue ? "text-danger" : ""}`}>
-                                        {fmtEur(e.amount)}
+
+                                <div style={{ textAlign: "right", marginRight: 32 }}>
+                                    <div style={{ fontSize: 18, fontWeight: 800, color: e.isPaid ? "var(--muted)" : "var(--foreground)" }}>
+                                        {fmt(e.amount)}
                                     </div>
-                                    <div className="expense-actions">
-                                        {e.isPaid ? (
-                                            <span className="badge badge-success"><Check size={10} /> Pagata</span>
-                                        ) : (
-                                            <button
-                                                onClick={() => markPaid(e.id)}
-                                                className="btn-ghost btn-sm"
-                                                title="Segna come pagata"
-                                            >
-                                                <Check size={14} />
-                                            </button>
-                                        )}
-                                        <Link href={`/expenses/${e.id}/edit`} className="btn-ghost btn-sm" title="Modifica">
-                                            <Pencil size={14} />
-                                        </Link>
-                                        <button onClick={() => deleteExpense(e.id)} className="btn-danger btn-sm" title="Elimina">
-                                            <Trash2 size={14} />
+                                    <div className="badge" style={{
+                                        padding: 0, fontSize: 10, marginTop: 4,
+                                        color: e.isPaid ? "var(--success)" : overdue ? "var(--danger)" : "var(--warning)"
+                                    }}>
+                                        {e.isPaid ? "SALDATA" : overdue ? "SCADUTA" : "DA SALDARE"}
+                                    </div>
+                                </div>
+
+                                <div style={{ display: "flex", gap: 8 }}>
+                                    {!e.isPaid && (
+                                        <button onClick={() => markPaid(e.id)} className="btn-secondary" style={{ padding: 8, background: "var(--muted-bg)", border: "none" }}>
+                                            <Check size={14} />
                                         </button>
-                                    </div>
+                                    )}
+                                    <Link href={`/expenses/${e.id}/edit`} className="btn-secondary" style={{ padding: 8, border: "none" }}>
+                                        <Pencil size={14} />
+                                    </Link>
+                                    <button onClick={() => deleteExpense(e.id)} className="btn-secondary" style={{ padding: 8, border: "none", color: "var(--danger)" }}>
+                                        <Trash2 size={14} />
+                                    </button>
                                 </div>
-                            </div>
+                            </motion.div>
                         );
                     })}
-                </div>
-            )}
-        </div>
+                </AnimatePresence>
+            </div>
+        </motion.div>
     );
 }

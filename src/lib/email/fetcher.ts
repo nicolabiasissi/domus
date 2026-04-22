@@ -2,6 +2,7 @@ import { prisma } from "../prisma";
 import { detectBill } from "../ai/detector";
 import { parseBill } from "../ai/parser";
 import { matchProperty } from "../ai/matcher";
+import { NotificationService } from "../notifications/service";
 
 /**
  * Main service to process emails and find bills using AI
@@ -9,7 +10,6 @@ import { matchProperty } from "../ai/matcher";
 export async function syncInboxes() {
     console.log("[AI SYNC] Starting global sync...");
 
-    // 1. Fetch all active email connections
     const connections = await prisma.emailConnection.findMany({
         where: { isActive: true },
         include: { user: true }
@@ -25,11 +25,6 @@ export async function syncInboxes() {
 }
 
 async function processInbox(connection: any) {
-    // In a real implementation:
-    // 1. Fetch unread emails via IMAP/Gmail API
-    // 2. Loop through them
-
-    // MOCK EMAIL for flow demonstration
     const mockEmailId = `msg_${Date.now()}`;
     const mockEmailSubject = "Nuova Bolletta Enel - Scadenza 20/03/2026";
     const mockEmailBody = "Gentile Cliente, la informiamo che è disponibile la sua bolletta Enel Energia...";
@@ -38,13 +33,13 @@ async function processInbox(connection: any) {
     const { isBill, confidence } = await detectBill(mockEmailSubject, mockEmailBody);
     if (!isBill) return;
 
-    // 2. DEDUPLICATE using unique messageId
+    // 2. DEDUPLICATE
     const existing = await prisma.ingestedEmail.findFirst({
         where: { userId: connection.userId, messageId: mockEmailId }
     });
     if (existing) return;
 
-    // 3. PARSE (Mock text from a hypothetical PDF attachment)
+    // 3. PARSE
     const mockPdfText = "Fornitura Luce - Enel Energia - Cliente: Niki - Indirizzo: Via Roma 123 - Totale: 142.50€ - Scadenza: 2026-03-20";
     const billData = await parseBill(mockPdfText);
 
@@ -88,24 +83,22 @@ async function processInbox(connection: any) {
             data: { status: "CREATED" }
         });
 
-        // 7. NOTIFY (In-app)
-        await prisma.notification.create({
-            data: {
-                userId: connection.userId,
-                title: "Bolletta registrata!",
-                body: `Domus AI ha trovato una bolletta di ${billData.amount}€ per ${property.name}.`,
-                type: "BILL_ADDED",
-            }
+        // 7. NOTIFY
+        await NotificationService.create({
+            userId: connection.userId,
+            title: "Bolletta registrata!",
+            body: `Domus AI ha trovato una bolletta di ${billData.amount}€ per ${property.name}.`,
+            type: "BILL_ADDED",
+            metadata: { ingestedEmailId: ingested.id }
         });
     } else {
         // Notify of unmatched bill
-        await prisma.notification.create({
-            data: {
-                userId: connection.userId,
-                title: "Bolletta non abbinata",
-                body: `Abbiamo trovato una bolletta da ${billData.provider} ma non riusciamo ad abbinarla a un immobile.`,
-                type: "SYSTEM",
-            }
+        await NotificationService.create({
+            userId: connection.userId,
+            title: "Bolletta non abbinata",
+            body: `Abbiamo trovato una bolletta da ${billData.provider} ma non riusciamo ad abbinarla a un immobile.`,
+            type: "BILL_DETECTED",
+            metadata: { ingestedEmailId: ingested.id }
         });
     }
 }

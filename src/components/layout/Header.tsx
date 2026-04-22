@@ -1,47 +1,65 @@
 "use client";
 
 import { signOut } from "next-auth/react";
-import type { Session } from "next-auth";
+import Link from "next/link";
 import { LogOut, User, ChevronDown } from "lucide-react";
 import NotificationBell from "./NotificationBell";
+import { useAppContext } from "@/context/AppContext";
+import { Logo } from "@/components/common/Logo";
 
-interface HeaderProps {
-    user: Session["user"];
-}
+export default function Header() {
+    const { user } = useAppContext();
 
-export default function Header({ user }: HeaderProps) {
+    const getGreeting = () => {
+        if (user?.language === "en") return "Welcome";
+        if (user?.gender === "FEMALE") return "Benvenuta";
+        if (user?.gender === "MALE") return "Benvenuto";
+        if (user?.gender === "NEUTRAL") return "Benvenutə";
+        return "Benvenuto/a";
+    };
+
     return (
-        <header className="dashboard-header" style={{ padding: "16px 32px" }}>
-            <div className="header-welcome">
-                <p className="header-greeting" style={{ fontSize: 15 }}>
-                    Ciao, <strong style={{ fontWeight: 800 }}>{user?.name || user?.email?.split("@")[0]}</strong>
-                </p>
-            </div>
+        <header className="dashboard-header">
+            <div style={{ maxWidth: "var(--container-max)", margin: "0 auto", width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div className="header-brand" style={{ display: "flex", alignItems: "center", gap: 32 }}>
+                    <Logo size="sm" />
 
-            <div className="header-actions" style={{ gap: 16 }}>
-                <NotificationBell />
-
-                <div style={{ width: 1, height: 24, background: "var(--card-border)" }} />
-
-                <div className="header-user-dropdown" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                    <div className="avatar" style={{ width: 34, height: 34, border: "2px solid white", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
-                        <User size={18} />
+                    <div className="header-welcome">
+                        <p style={{ fontSize: 13, color: "var(--muted)", fontWeight: 500 }}>
+                            {getGreeting()},{" "}
+                            <strong style={{ color: "var(--foreground)", fontWeight: 700 }}>
+                                {user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : (user?.name || "Utente")}
+                            </strong>
+                            <span style={{ margin: "0 8px", opacity: 0.3 }}>/</span>
+                            Dashboard
+                        </p>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column" }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1 }}>{user?.name || "Profilo"}</span>
-                        <span style={{ fontSize: 11, color: "var(--muted)" }}>Piano Pro</span>
-                    </div>
-                    <ChevronDown size={14} style={{ color: "var(--muted)" }} />
                 </div>
 
-                <button
-                    onClick={() => signOut({ callbackUrl: "/auth/login" })}
-                    className="btn-ghost"
-                    style={{ borderRadius: 99, color: "var(--danger)" }}
-                    title="Esci"
-                >
-                    <LogOut size={16} />
-                </button>
+                <div className="header-actions" style={{ display: "flex", alignItems: "center", gap: 24 }}>
+                    <NotificationBell />
+
+                    <Link href="/settings" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", color: "inherit" }}>
+                        <div style={{ width: 28, height: 28, borderRadius: 6, background: "var(--muted-bg)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                            {user?.avatarUrl ? (
+                                <img src={user.avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            ) : (
+                                <User size={14} className="text-muted" />
+                            )}
+                        </div>
+                        <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.05em", color: user?.plan === "PRO" ? "var(--warning)" : "var(--muted)" }}>
+                            {user?.plan || "BASIC"}
+                        </span>
+                    </Link>
+
+                    <button
+                        onClick={() => signOut({ callbackUrl: "/auth/login" })}
+                        style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
+                        title="Esci"
+                    >
+                        <LogOut size={16} />
+                    </button>
+                </div>
             </div>
         </header>
     );

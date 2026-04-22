@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle, XCircle, Clock, Trash2, MailOpen, Inbox as InboxIcon, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle, XCircle, Clock, Inbox as InboxIcon, Sparkles, ArrowUpRight } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAppContext } from "@/context/AppContext";
+import { formatCurrency } from "@/lib/currency";
 
 interface IngestedEmail {
     id: string;
@@ -14,21 +18,23 @@ interface IngestedEmail {
     expense: { id: string; amount: number; category: string; description: string | null } | null;
 }
 
-const statusMeta: Record<string, { label: string; cls: string; color: string }> = {
-    PENDING: { label: "In attesa", cls: "badge-warning", color: "var(--warning)" },
-    DETECTED: { label: "Rilevata", cls: "badge-primary", color: "var(--primary)" },
-    PARSED: { label: "Analizzata", cls: "badge-primary", color: "var(--primary)" },
-    MATCHED: { label: "Abbinata", cls: "badge-primary", color: "var(--primary)" },
-    CREATED: { label: "Aggiunta", cls: "badge-success", color: "var(--success)" },
-    SKIPPED: { label: "Ignorata", cls: "badge-muted", color: "var(--muted)" },
-    FAILED: { label: "Errore", cls: "badge-danger", color: "var(--danger)" },
+const statusMeta: Record<string, { label: string; color: string }> = {
+    PENDING: { label: "In coda", color: "var(--muted)" },
+    DETECTED: { label: "Rilevata", color: "var(--warning)" },
+    PARSED: { label: "Analizzata", color: "var(--warning)" },
+    MATCHED: { label: "Abbinata", color: "var(--warning)" },
+    CREATED: { label: "Archiviata", color: "var(--success)" },
+    SKIPPED: { label: "Ignorata", color: "var(--muted)" },
+    FAILED: { label: "Errore", color: "var(--danger)" },
 };
 
-function fmtEur(n: number) {
-    return new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(n);
-}
+const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.3 } }
+};
 
 export default function InboxPage() {
+    const { user, loading: appLoading } = useAppContext();
     const [emails, setEmails] = useState<IngestedEmail[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<string>("ALL");
@@ -37,141 +43,142 @@ export default function InboxPage() {
         const loadInbox = async () => {
             try {
                 const res = await fetch("/api/ingested-emails");
-                if (!res.ok) throw new Error(`Status ${res.status}`);
-                const text = await res.text();
-                if (text) {
-                    setEmails(JSON.parse(text));
-                }
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
+                if (res.ok) setEmails(await res.json());
+            } catch (err) { console.error(err); }
+            finally { setLoading(false); }
         };
         loadInbox();
     }, []);
 
+    const currency = user?.currency || "EUR";
+    const lang = user?.language || "it";
+    const fmt = (v: number) => formatCurrency(v, currency, lang);
+
     const filtered = emails.filter(e => filter === "ALL" || e.status === filter);
+    const pendingCount = emails.filter(e => ["PENDING", "DETECTED", "PARSED"].includes(e.status)).length;
 
-    const counts = {
-        ALL: emails.length,
-        CREATED: emails.filter(e => e.status === "CREATED").length,
-        PENDING: emails.filter(e => ["PENDING", "DETECTED", "PARSED"].includes(e.status)).length,
-        FAILED: emails.filter(e => e.status === "FAILED").length,
-    };
+    if (loading || appLoading) return <div className="loading-center"><div className="spinner" /></div>;
 
-    if (loading) return <div className="loading-center"><div className="spinner" /></div>;
+    if (user?.plan !== "PRO") {
+        return (
+            <div className="animate-gentle" style={{ height: "calc(100vh - 100px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div className="card" style={{ maxWidth: 500, padding: 64, textAlign: "center", position: "relative", overflow: "hidden" }}>
+                    <div style={{ position: "absolute", top: -20, right: -20, fontSize: 120, opacity: 0.05 }}>✨</div>
+                    <div style={{ width: 64, height: 64, borderRadius: 20, background: "var(--warning-bg)", color: "var(--warning)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 32px" }}>
+                        <Sparkles size={32} />
+                    </div>
+                    <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 16 }}>AI Inbox è Pro</h2>
+                    <p style={{ color: "var(--muted)", fontSize: 15, lineHeight: 1.6, marginBottom: 40 }}>
+                        L'automazione intelligente delle bollette tramite email richiede un piano Professionale. Risparmia tempo e azzera gli errori con il parsing AI.
+                    </p>
+                    <Link href="/settings/account" className="btn-primary" style={{ display: "inline-flex", padding: "14px 40px", fontSize: 15, fontWeight: 700 }}>
+                        Attiva Piano Pro
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="dashboard-fade-in">
-            <div className="page-header" style={{ marginBottom: 32 }}>
+        <motion.div initial="hidden" animate="visible" className="animate-gentle">
+            <header style={{ marginBottom: 48, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                 <div>
-                    <h1 className="page-title" style={{ fontSize: 28, letterSpacing: "-0.5px" }}>AI Inbox</h1>
-                    <p className="page-subtitle">Flusso delle bollette processate dall&apos;intelligenza artificiale.</p>
+                    <div className="kpi-main-label">Automazione</div>
+                    <h1 className="page-title" style={{ fontSize: 40 }}>AI Inbox</h1>
                 </div>
-                <div style={{ display: "flex", gap: 10 }}>
-                    <div style={{ background: "var(--primary-light)", color: "var(--primary)", padding: "8px 16px", borderRadius: 99, fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
-                        <Sparkles size={14} />
-                        AI Attiva
+                <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--success)", fontSize: 12, fontWeight: 700 }}>
+                    <Sparkles size={14} />
+                    MOTORE AI ATTIVO
+                </div>
+            </header>
+
+            <motion.section variants={itemVariants} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, marginBottom: 48 }}>
+                <div className="card">
+                    <div className="kpi-main-label">Processate</div>
+                    <div style={{ fontSize: 32, fontWeight: 800 }}>{emails.length}</div>
+                </div>
+                <div className="card">
+                    <div className="kpi-main-label">In attesa</div>
+                    <div style={{ fontSize: 32, fontWeight: 800, color: pendingCount > 0 ? "var(--warning)" : "var(--muted)" }}>
+                        {pendingCount}
                     </div>
                 </div>
-            </div>
+            </motion.section>
 
-            {/* Stats */}
-            <div className="kpi-grid" style={{ marginBottom: 32, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20 }}>
-                <div className="kpi-card premium-card">
-                    <div className="kpi-label">Monitorate</div>
-                    <div className="kpi-value">{counts.ALL}</div>
-                </div>
-                <div className="kpi-card premium-card">
-                    <div className="kpi-label" style={{ color: "var(--success)" }}>Riconosciute</div>
-                    <div className="kpi-value" style={{ color: "var(--success)" }}>{counts.CREATED}</div>
-                </div>
-                <div className="kpi-card premium-card">
-                    <div className="kpi-label" style={{ color: "var(--warning)" }}>In attesa</div>
-                    <div className="kpi-value" style={{ color: "var(--warning)" }}>{counts.PENDING}</div>
-                </div>
-                <div className="kpi-card premium-card">
-                    <div className="kpi-label" style={{ color: "var(--danger)" }}>Anomalie</div>
-                    <div className="kpi-value" style={{ color: "var(--danger)" }}>{counts.FAILED}</div>
-                </div>
-            </div>
-
-            {/* Filters */}
-            <div className="filters-bar" style={{ marginBottom: 24, gap: 8 }}>
-                {["ALL", "CREATED", "PENDING", "FAILED"].map(s => (
+            <div style={{ display: "flex", gap: 8, marginBottom: 32, borderBottom: "1px solid var(--card-border)", paddingBottom: 12 }}>
+                {(["ALL", "CREATED", "PENDING", "FAILED"] as const).map(f => (
                     <button
-                        key={s}
-                        className={filter === s ? "btn-primary" : "btn-secondary"}
-                        onClick={() => setFilter(s)}
-                        style={{ borderRadius: 99, padding: "8px 20px", fontSize: 13 }}
+                        key={f}
+                        onClick={() => setFilter(f)}
+                        style={{
+                            background: "none", border: "none",
+                            color: filter === f ? "var(--foreground)" : "var(--muted)",
+                            fontSize: 13, fontWeight: 700, padding: "8px 16px", cursor: "pointer",
+                            position: "relative"
+                        }}
                     >
-                        {s === "ALL" ? "Tutte" : statusMeta[s]?.label ?? s}
+                        {f === "ALL" ? "Storico" : f === "CREATED" ? "Archiviate" : f === "PENDING" ? "Pendenti" : "Errori"}
+                        {filter === f && (
+                            <motion.div layoutId="activeFilterInbox" style={{ position: "absolute", bottom: -13, left: 0, right: 0, height: 2, background: "var(--foreground)" }} />
+                        )}
                     </button>
                 ))}
             </div>
 
-            {/* Email List */}
-            {filtered.length === 0 ? (
-                <div className="empty-state-card" style={{ padding: "100px 40px" }}>
-                    <div className="empty-icon" style={{ opacity: 0.3 }}><InboxIcon size={48} /></div>
-                    <p className="empty-title">Nessuna bolletta rilevata</p>
-                    <p className="empty-sub">
-                        {emails.length === 0
-                            ? "Connetti il tuo provider email per iniziare l'analisi automatica."
-                            : "Nessuna email corrisponde al filtro selezionato."}
-                    </p>
-                </div>
-            ) : (
-                <div className="expense-list" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {filtered.map(email => {
-                        const meta = statusMeta[email.status] ?? { label: email.status, cls: "badge-muted", color: "var(--muted)" };
-                        return (
-                            <div key={email.id} className="expense-item premium-card" style={{ padding: "16px 24px", borderRadius: 16, border: "none" }}>
-                                <div className="expense-icon" style={{ background: "var(--muted-bg)", padding: 12, borderRadius: 12 }}>
-                                    {email.status === "CREATED" ? <CheckCircle size={20} style={{ color: "var(--success)" }} /> :
-                                        email.status === "FAILED" ? <XCircle size={20} style={{ color: "var(--danger)" }} /> :
-                                            <Clock size={20} style={{ color: "var(--warning)" }} />}
-                                </div>
-                                <div className="expense-info">
-                                    <div className="expense-desc" style={{ fontWeight: 700, fontSize: 16 }}>{email.subject || "Bolletta senza oggetto"}</div>
-                                    <div className="expense-meta" style={{ marginTop: 4 }}>
-                                        <span style={{ fontWeight: 600 }}>{email.fromAddress}</span>
-                                        <span>·</span>
-                                        <span>{new Date(email.receivedAt).toLocaleDateString("it-IT")}</span>
-                                        {email.confidence !== null && (
-                                            <>
-                                                <span>·</span>
-                                                <span style={{ color: "var(--primary)", fontWeight: 700 }}>AI: {Math.round(email.confidence * 100)}%</span>
-                                            </>
-                                        )}
-                                    </div>
-                                    {email.expense && (
-                                        <div style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 10, background: "var(--success-bg)", padding: "4px 12px", borderRadius: 8 }}>
-                                            <span style={{ color: "var(--success)", fontWeight: 800, fontSize: 14 }}>{fmtEur(email.expense.amount)}</span>
-                                            <span style={{ width: 1, height: 12, background: "rgba(34, 197, 94, 0.3)" }} />
-                                            <span style={{ color: "var(--success)", fontSize: 12, fontWeight: 600 }}>{email.expense.category}</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <AnimatePresence>
+                    {filtered.length === 0 ? (
+                        <div style={{ padding: 60, textAlign: "center", color: "var(--muted)" }}>L&apos;inbox è vuoto.</div>
+                    ) : (
+                        filtered.map((email) => {
+                            const meta = statusMeta[email.status] || { label: email.status, color: "var(--muted)" };
+                            return (
+                                <motion.div
+                                    layout
+                                    key={email.id}
+                                    variants={itemVariants}
+                                    className="premium-card"
+                                    style={{
+                                        borderRadius: 0, borderTop: "none", borderLeft: "none", borderRight: "none",
+                                        padding: "20px 24px", display: "flex", alignItems: "center", gap: 24,
+                                        background: "transparent"
+                                    }}
+                                >
+                                    <div style={{ width: 4, height: 24, background: meta.color, borderRadius: 2 }} />
+
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: 15, fontWeight: 700 }}>{email.subject || "Bolletta rilevata"}</div>
+                                        <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2, display: "flex", gap: 8 }}>
+                                            <span>{email.fromAddress}</span>
+                                            <span>·</span>
+                                            {email.confidence && (
+                                                <span style={{ color: "var(--foreground)", fontWeight: 700 }}>AI {Math.round(email.confidence * 100)}%</span>
+                                            )}
                                         </div>
+                                    </div>
+
+                                    <div style={{ textAlign: "right", marginRight: 24 }}>
+                                        {email.expense ? (
+                                            <div style={{ fontSize: 18, fontWeight: 800 }}>{fmt(email.expense.amount)}</div>
+                                        ) : (
+                                            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--muted)" }}>Analisi...</div>
+                                        )}
+                                        <div style={{ fontSize: 10, fontWeight: 800, color: meta.color, marginTop: 4 }}>
+                                            {meta.label.toUpperCase()}
+                                        </div>
+                                    </div>
+
+                                    {email.expense && (
+                                        <Link href="/expenses" className="btn-secondary" style={{ padding: 8, border: "none" }}>
+                                            <ArrowUpRight size={16} />
+                                        </Link>
                                     )}
-                                </div>
-                                <div className="expense-right" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 12 }}>
-                                    <div style={{ background: meta.color, color: "white", padding: "4px 12px", borderRadius: 99, fontSize: 11, fontWeight: 800 }}>
-                                        {meta.label.toUpperCase()}
-                                    </div>
-                                    <div className="expense-actions">
-                                        <button className="btn-ghost" style={{ padding: 8, borderRadius: 8 }}>
-                                            <MailOpen size={16} />
-                                        </button>
-                                        <button className="btn-ghost" style={{ padding: 8, borderRadius: 8, color: "var(--danger)" }}>
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-        </div>
+                                </motion.div>
+                            );
+                        })
+                    )}
+                </AnimatePresence>
+            </div>
+        </motion.div>
     );
 }

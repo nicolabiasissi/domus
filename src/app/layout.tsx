@@ -15,6 +15,8 @@ export const metadata: Metadata = {
   keywords: ["spese casa", "gestione immobili", "bollette", "budget domestico"],
 };
 
+import { AppProvider } from "@/context/AppContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -23,7 +25,11 @@ export default function RootLayout({
   return (
     <html lang="it">
       <body className={`${inter.variable} antialiased`}>
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider>
+          <AppProvider>
+            {children}
+          </AppProvider>
+        </SessionProvider>
       </body>
     </html>
   );

@@ -23,18 +23,47 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 const valid = await bcrypt.compare(password, user.password);
                 if (!valid) return null;
 
-                return { id: user.id, email: user.email, name: user.name };
+                // Sync name for NextAuth compatibility
+                const displayName = (user as any).firstName && (user as any).lastName
+                    ? `${(user as any).firstName} ${(user as any).lastName}`
+                    : (user.name || user.email);
+
+                return {
+                    id: user.id,
+                    email: user.email,
+                    name: displayName,
+                    firstName: (user as any).firstName,
+                    lastName: (user as any).lastName,
+                    plan: user.plan as any,
+                    theme: user.theme as any,
+                    avatarUrl: user.avatarUrl
+                };
             },
         }),
     ],
-    session: { strategy: "jwt" },
+    session: {
+        strategy: "jwt",
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+    },
     callbacks: {
-        jwt({ token, user }) {
-            if (user) token.id = user.id;
+        async jwt({ token, user }) {
+            if (user) {
+                token.id = user.id;
+                token.plan = (user as any).plan;
+                token.theme = (user as any).theme;
+                token.firstName = (user as any).firstName;
+                token.lastName = (user as any).lastName;
+            }
             return token;
         },
-        session({ session, token }) {
-            if (token.id) session.user.id = token.id as string;
+        async session({ session, token }) {
+            if (token.id) {
+                session.user.id = token.id as string;
+                (session.user as any).plan = token.plan;
+                (session.user as any).theme = token.theme;
+                (session.user as any).firstName = token.firstName;
+                (session.user as any).lastName = token.lastName;
+            }
             return session;
         },
     },
